@@ -126,4 +126,40 @@ CREATE TABLE movimientos_inventario (
   INDEX idx_movimientos_venta (venta_id)
 ) ENGINE=InnoDB;
 
+
+-- ---------- Triggers: mantienen ventas.total ----------
+DELIMITER $$
+
+CREATE TRIGGER trg_detalle_ventas_ai AFTER INSERT ON detalle_ventas
+FOR EACH ROW
+BEGIN
+  UPDATE ventas
+     SET total = (SELECT COALESCE(SUM(subtotal),0) FROM detalle_ventas WHERE venta_id = NEW.venta_id)
+   WHERE id = NEW.venta_id;
+END$$
+
+CREATE TRIGGER trg_detalle_ventas_au AFTER UPDATE ON detalle_ventas
+FOR EACH ROW
+BEGIN
+  UPDATE ventas
+     SET total = (SELECT COALESCE(SUM(subtotal),0) FROM detalle_ventas WHERE venta_id = NEW.venta_id)
+   WHERE id = NEW.venta_id;
+  IF OLD.venta_id <> NEW.venta_id THEN
+    UPDATE ventas
+       SET total = (SELECT COALESCE(SUM(subtotal),0) FROM detalle_ventas WHERE venta_id = OLD.venta_id)
+     WHERE id = OLD.venta_id;
+  END IF;
+END$$
+
+CREATE TRIGGER trg_detalle_ventas_ad AFTER DELETE ON detalle_ventas
+FOR EACH ROW
+BEGIN
+  UPDATE ventas
+     SET total = (SELECT COALESCE(SUM(subtotal),0) FROM detalle_ventas WHERE venta_id = OLD.venta_id)
+   WHERE id = OLD.venta_id;
+END$$
+
+DELIMITER ;
+
 SHOW TABLES;
+SHOW CREATE TABLE detalle_ventas;
